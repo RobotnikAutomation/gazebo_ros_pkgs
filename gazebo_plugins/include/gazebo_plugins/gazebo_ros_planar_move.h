@@ -53,6 +53,7 @@ namespace gazebo {
 
     protected:
       virtual void UpdateChild();
+      virtual void UpdateChildEnd();
       virtual void FiniChild();
 
     private:
@@ -60,6 +61,7 @@ namespace gazebo {
 
       physics::ModelPtr parent_;
       event::ConnectionPtr update_connection_;
+      event::ConnectionPtr update_connection2_;
 
       boost::shared_ptr<ros::NodeHandle> rosnode_;
       ros::Publisher odometry_pub_;

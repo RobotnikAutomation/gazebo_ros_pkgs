@@ -92,6 +92,7 @@ namespace gazebo {
       double rot_;
       bool alive_;
       bool enable_y_axis_; ///< Enable Y-axis movement.
+      bool disable_pitch_and_roll_;
       common::Time last_odom_publish_time_;
       ignition::math::Pose3d last_odom_pose_;
 

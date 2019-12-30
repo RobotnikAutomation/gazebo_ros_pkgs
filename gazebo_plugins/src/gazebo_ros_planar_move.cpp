@@ -63,6 +63,17 @@ namespace gazebo
       enable_y_axis_ = sdf->GetElement("enableYAxis")->Get<bool>();
     }
 
+    disable_pitch_and_roll_ = false;
+    if (!sdf->HasElement ("disablePitchAndRoll"))
+    {
+      ROS_INFO_NAMED("planar_move", "PlanarMovePlugin missing <disablePitchAndRoll>, "
+          "defaults to \"%d\"", disable_pitch_and_roll_);
+    }
+    else
+    {
+      disable_pitch_and_roll_ = sdf->GetElement("disablePitchAndRoll")->Get<bool>();
+    }
+
     command_topic_ = "cmd_vel";
     if (!sdf->HasElement("commandTopic"))
     {
@@ -173,9 +184,15 @@ namespace gazebo
       event::Events::ConnectWorldUpdateBegin(
           boost::bind(&GazeboRosPlanarMove::UpdateChildBegin, this));
     
-    update_connection_end_ =
-      event::Events::ConnectWorldUpdateEnd(
-          boost::bind(&GazeboRosPlanarMove::UpdateChildEnd, this));
+    if (disable_pitch_and_roll_ == true)
+    {
+      ROS_WARN_NAMED("planar_move", "PlanarMovePlugin (ns = %s) has <disablePitchAndRoll> to true, that means robot cannot move through slopes",
+          robot_namespace_.c_str());
+
+      update_connection_end_ =
+        event::Events::ConnectWorldUpdateEnd(
+            boost::bind(&GazeboRosPlanarMove::UpdateChildEnd, this));
+    }
 
   }
 

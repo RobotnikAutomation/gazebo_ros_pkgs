@@ -52,7 +52,7 @@ namespace gazebo {
       void Load(physics::ModelPtr parent, sdf::ElementPtr sdf);
 
     protected:
-      virtual void UpdateChild();
+      virtual void UpdateChildBegin();
       virtual void UpdateChildEnd();
       virtual void FiniChild();
 
@@ -60,8 +60,8 @@ namespace gazebo {
       void publishOdometry(double step_time);
 
       physics::ModelPtr parent_;
-      event::ConnectionPtr update_connection_;
-      event::ConnectionPtr update_connection2_;
+      event::ConnectionPtr update_connection_begin_;
+      event::ConnectionPtr update_connection_end_;
 
       boost::shared_ptr<ros::NodeHandle> rosnode_;
       ros::Publisher odometry_pub_;

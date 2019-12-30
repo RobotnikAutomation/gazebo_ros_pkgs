@@ -169,36 +169,31 @@ namespace gazebo
       boost::thread(boost::bind(&GazeboRosPlanarMove::QueueThread, this));
 
     // listen to the update event (broadcast every simulation iteration)
-    update_connection_ =
+    update_connection_begin_ =
       event::Events::ConnectWorldUpdateBegin(
-          boost::bind(&GazeboRosPlanarMove::UpdateChild, this));
+          boost::bind(&GazeboRosPlanarMove::UpdateChildBegin, this));
     
-    update_connection2_ =
+    update_connection_end_ =
       event::Events::ConnectWorldUpdateEnd(
           boost::bind(&GazeboRosPlanarMove::UpdateChildEnd, this));
 
   }
 
   // Update the controller
-  void GazeboRosPlanarMove::UpdateChild()
+  void GazeboRosPlanarMove::UpdateChildBegin()
   {
     boost::mutex::scoped_lock scoped_lock(lock);
 #if GAZEBO_MAJOR_VERSION >= 8
     ignition::math::Pose3d pose = parent_->WorldPose();
-    ignition::math::Vector3d current_linear_velocity = parent_->RelativeLinearVel();
-    ignition::math::Vector3d current_angular_velocity = parent_->RelativeAngularVel();
 #else
     ignition::math::Pose3d pose = parent_->GetWorldPose().Ign();
-    ignition::math::Vector3d current_linear_velocity = parent_->GetRelativeLinearVel();
-    ignition::math::Vector3d current_angular_velocity = parent_->GetRelativeAngularVel();
 #endif
     float yaw = pose.Rot().Yaw();
-
     parent_->SetLinearVel(ignition::math::Vector3d(
           x_ * cosf(yaw) - y_ * sinf(yaw),
           y_ * cosf(yaw) + x_ * sinf(yaw),
           0));
-    parent_->SetAngularVel(ignition::math::Vector3d(current_angular_velocity.X(), current_angular_velocity.Y(), rot_));
+    parent_->SetAngularVel(ignition::math::Vector3d(0, 0, rot_));
     if (odometry_rate_ > 0.0) {
 #if GAZEBO_MAJOR_VERSION >= 8
       common::Time current_time = parent_->GetWorld()->SimTime();
@@ -212,7 +207,6 @@ namespace gazebo
         last_odom_publish_time_ = current_time;
       }
     }
-ROS_WARN_STREAM_THROTTLE(1, "UpdateBegin");
   }
   
   void GazeboRosPlanarMove::UpdateChildEnd()
@@ -220,23 +214,15 @@ ROS_WARN_STREAM_THROTTLE(1, "UpdateBegin");
     boost::mutex::scoped_lock scoped_lock(lock);
 #if GAZEBO_MAJOR_VERSION >= 8
     ignition::math::Pose3d pose = parent_->WorldPose();
-    ignition::math::Vector3d current_linear_velocity = parent_->RelativeLinearVel();
-    ignition::math::Vector3d current_angular_velocity = parent_->RelativeAngularVel();
 #else
     ignition::math::Pose3d pose = parent_->GetWorldPose().Ign();
-    ignition::math::Vector3d current_linear_velocity = parent_->GetRelativeLinearVel();
-    ignition::math::Vector3d current_angular_velocity = parent_->GetRelativeAngularVel();
 #endif
-    float yaw = pose.Rot().Yaw();
-
-ROS_INFO_STREAM_THROTTLE(1, "UpdateEnd");
-    
-    ignition::math::Quaterniond current_orientation = pose.Rot();
     ignition::math::Vector3d current_position = pose.Pos();
     current_position.Z(0);
+    ignition::math::Quaterniond current_orientation = pose.Rot();
     current_orientation.Euler(0,0,current_orientation.Yaw());
     parent_->SetWorldPose(ignition::math::Pose3d(current_position, current_orientation));
-    }
+}
 
   // Finalize the controller
   void GazeboRosPlanarMove::FiniChild() {

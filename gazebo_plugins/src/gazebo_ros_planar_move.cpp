@@ -263,26 +263,6 @@ void GazeboRosPlanarMove::UpdateChildEnd()
   parent_->SetAngularVel(ignition::math::Vector3d(0, 0, 0));
 }
 
-  void GazeboRosPlanarMove::UpdateChildEnd()
-  {
-    boost::mutex::scoped_lock scoped_lock(lock);
-#if GAZEBO_MAJOR_VERSION >= 8
-    ignition::math::Pose3d pose = parent_->WorldPose();
-#else
-    ignition::math::Pose3d pose = parent_->GetWorldPose().Ign();
-#endif
-    ignition::math::Vector3d current_position = pose.Pos();
-    current_position.Z(0);
-    ignition::math::Quaterniond current_orientation = pose.Rot();
-    current_orientation.Euler(0,0,current_orientation.Yaw());
-    parent_->SetWorldPose(ignition::math::Pose3d(current_position, current_orientation));
-    parent_->SetLinearVel(ignition::math::Vector3d(
-          0,
-          0,
-          0));
-    parent_->SetAngularVel(ignition::math::Vector3d(0, 0, 0));
-}
-
   // Finalize the controller
   void GazeboRosPlanarMove::FiniChild() {
     alive_ = false;

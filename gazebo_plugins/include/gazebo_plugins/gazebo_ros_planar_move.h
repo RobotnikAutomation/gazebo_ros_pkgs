@@ -90,9 +90,15 @@ private:
   double x_;
   double y_;
   double rot_;
+  ros::Time last_cmd_stamp_;
+  
+  ignition::math::Vector3d freeze_position_;
+  ignition::math::Quaterniond freeze_orientation_;
+
   bool alive_;
   bool enable_y_axis_;  ///< Enable Y-axis movement.
   bool disable_pitch_and_roll_;
+  bool freeze_after_cmd_timeout_;
   common::Time last_odom_publish_time_;
   ignition::math::Pose3d last_odom_pose_;
 

@@ -80,6 +80,19 @@ void GazeboRosPlanarMove::Load(physics::ModelPtr parent, sdf::ElementPtr sdf)
     disable_pitch_and_roll_ = sdf->GetElement("disablePitchAndRoll")->Get<bool>();
   }
 
+  freeze_after_cmd_timeout_ = false;
+  if (!sdf->HasElement("freezeAfterCmdTimeout"))
+  {
+    ROS_INFO_NAMED("planar_move",
+                   "PlanarMovePlugin missing <freezeAfterCmdTimeout>, "
+                   "defaults to \"%d\"",
+                   freeze_after_cmd_timeout_);
+  }
+  else
+  {
+    freeze_after_cmd_timeout_ = sdf->GetElement("freezeAfterCmdTimeout")->Get<bool>();
+  }
+
   command_topic_ = "cmd_vel";
   if (!sdf->HasElement("commandTopic"))
   {
@@ -171,6 +184,7 @@ void GazeboRosPlanarMove::Load(physics::ModelPtr parent, sdf::ElementPtr sdf)
   x_ = 0;
   y_ = 0;
   rot_ = 0;
+  last_cmd_stamp_ = ros::Time::now();
   alive_ = true;
 
   // Ensure that ROS has been initialized and subscribe to cmd_vel
@@ -228,6 +242,7 @@ void GazeboRosPlanarMove::UpdateChildBegin()
   ignition::math::Pose3d pose = parent_->GetWorldPose().Ign();
 #endif
   float yaw = pose.Rot().Yaw();
+
   parent_->SetLinearVel(ignition::math::Vector3d(x_ * cosf(yaw) - y_ * sinf(yaw), y_ * cosf(yaw) + x_ * sinf(yaw), 0));
   parent_->SetAngularVel(ignition::math::Vector3d(0, 0, rot_));
   if (odometry_rate_ > 0.0)
@@ -254,13 +269,23 @@ void GazeboRosPlanarMove::UpdateChildEnd()
 #else
   ignition::math::Pose3d pose = parent_->GetWorldPose().Ign();
 #endif
+
   ignition::math::Vector3d current_position = pose.Pos();
-  // current_position.Z(0);
   ignition::math::Quaterniond current_orientation = pose.Rot();
+  
+  if (freeze_after_cmd_timeout_ and ros::Time::now() - last_cmd_stamp_ > ros::Duration(5))
+  {
+    ROS_INFO_THROTTLE(5, "Freezing robot after command timeout to prevent slippage due to bad physics simulation");
+    current_position = freeze_position_;
+    current_orientation = freeze_orientation_;
+  }
   current_orientation.Euler(0, 0, current_orientation.Yaw());
   parent_->SetWorldPose(ignition::math::Pose3d(current_position, current_orientation));
   parent_->SetLinearVel(ignition::math::Vector3d(0, 0, 0));
   parent_->SetAngularVel(ignition::math::Vector3d(0, 0, 0));
+
+  freeze_position_ = current_position;
+  freeze_orientation_ = current_orientation;
 }
 
 // Finalize the controller
@@ -276,6 +301,7 @@ void GazeboRosPlanarMove::FiniChild()
 void GazeboRosPlanarMove::cmdVelCallback(const geometry_msgs::Twist::ConstPtr& cmd_msg)
 {
   boost::mutex::scoped_lock scoped_lock(lock);
+  last_cmd_stamp_ = ros::Time::now();
   x_ = cmd_msg->linear.x;
   if (enable_y_axis_)
   {

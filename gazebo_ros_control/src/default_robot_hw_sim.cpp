@@ -221,13 +221,28 @@ bool DefaultRobotHWSim::initSim(
                                joint_names_[j]);
       if (pid_controllers_[j].init(nh))
       {
+        // Velocity control loop closed in position
+        auto const close_loop{ nh.param<std::string>("close_loop", "velocity") };
         switch (joint_control_methods_[j])
         {
           case POSITION:
             joint_control_methods_[j] = POSITION_PID;
             break;
           case VELOCITY:
-            joint_control_methods_[j] = VELOCITY_PID;
+            if (close_loop == "position")
+            {
+              joint_control_methods_[j] = VELOCITY_POS_PID;
+            }
+            else if (close_loop == "velocity")
+            {
+              joint_control_methods_[j] = VELOCITY_PID;
+            }
+            else
+            {
+              ROS_WARN_STREAM_NAMED("default_robot_hw_sim", "No joint control method for joint " <<
+                                    joint_names_[j] << " found. Using velocity control close loop.");
+              joint_control_methods_[j] = VELOCITY_PID;
+            }
             break;
         }
       }
@@ -368,6 +383,7 @@ void DefaultRobotHWSim::writeSim(ros::Time time, ros::Duration period)
         break;
 
       case VELOCITY_PID:
+      {
         double error;
         if (e_stop_active_)
           error = -joint_velocity_[j];
@@ -378,6 +394,20 @@ void DefaultRobotHWSim::writeSim(ros::Time time, ros::Duration period)
                                     -effort_limit, effort_limit);
         sim_joints_[j]->SetForce(0, effort);
         break;
+      }
+
+      case VELOCITY_POS_PID:
+      {
+        if (!e_stop_active_) {
+          joint_position_command_[j] += joint_velocity_command_[j] * period.toSec();
+        }
+        double const error{ joint_position_command_[j] - joint_position_[j] };
+        const double effort_limit = joint_effort_limits_[j];
+        const double effort = clamp(pid_controllers_[j].computeCommand(error, period),
+                                    -effort_limit, effort_limit);
+        sim_joints_[j]->SetForce(0, effort);
+        break;
+      }
     }
   }
 }
